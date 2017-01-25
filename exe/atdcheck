@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+
+require 'atdcheck'
+require 'after_the_deadline'
+require 'rainbow/ext/string'
+require 'pandoc-ruby'
+
+text = ARGF.read
+
+$lastline = 0
+def find_in_text(text, phrase)
+  lines = text.lines
+  $lastline.upto(lines.length) do |i|
+    line = lines[i]
+    if line =~ /#{phrase}/ then
+      column = line.index /#{phrase}/
+      $lastline = i
+      return i+1, column+1
+    end
+  end
+  return '?', '?'
+end
+
+AfterTheDeadline(dictionary=nil, types=['Spelling']) # No custom dictionary, accept all error types
+errors = AfterTheDeadline.check text
+
+errors.each do |error|
+  line, column = find_in_text(text, error.string)
+  print "[ERROR] ".color(:red) + "#{line}:#{column}: " + "#{error.description}: ".color(:blue) + "#{error.string} ".color(:yellow) 
+  print "-> #{if error.suggestions.length == 1 then error.suggestions.first else error.suggestions end}".color(:green) unless error.suggestions.empty?
+  print "\n"
+  info = error.info.to_s
+  unless info =~ /503 Service Temporarily Unavailable/ then
+    puts PandocRuby.new(info, from: :html, to: :markdown).convert.gsub('\\','')
+  end
+  print "\n"
+end
+
