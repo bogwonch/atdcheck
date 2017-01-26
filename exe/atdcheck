@@ -4,6 +4,20 @@ require 'atdcheck'
 require 'after_the_deadline'
 require 'rainbow/ext/string'
 require 'pandoc-ruby'
+require 'optparse'
+
+options = {}
+opt_parser = OptionParser.new do |opt|
+  opt.banner = 'Usage: atdcheck [OPTIONS] [FILES]'
+  opt.separator ''
+  opt.separator 'Standard input will be used if no files provided'
+  opt.separator ''
+  opt.separator 'Options:'
+  opt.on('-d', '--describe', 'print the description if After the Deadline gives one') { |d| options[:describe] = d }
+  opt.on('-h', '--help', 'show this message') { puts opt_parser }
+end
+
+opt_parser.parse!
 
 text = ARGF.read
 
@@ -29,10 +43,12 @@ errors.each do |error|
   print "[ERROR] ".color(:red) + "#{line}:#{column}: " + "#{error.description}: ".color(:blue) + "#{error.string} ".color(:yellow) 
   print "-> #{if error.suggestions.length == 1 then error.suggestions.first else error.suggestions end}".color(:green) unless error.suggestions.empty?
   print "\n"
-  info = error.info.to_s
-  unless info =~ /503 Service Temporarily Unavailable/ then
-    puts PandocRuby.new(info, from: :html, to: :markdown).convert.gsub('\\','')
+  if options[:describe] then
+    info = error.info.to_s
+    unless info =~ /503 Service Temporarily Unavailable/ then
+      puts PandocRuby.new(info, from: :html, to: :markdown).convert.gsub('\\','')
+    end
+    print "\n"
   end
-  print "\n"
 end
 
